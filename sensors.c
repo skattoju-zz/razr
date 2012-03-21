@@ -11,6 +11,7 @@
 void Read_Gyro()
 {
   unsigned char buff[6];
+  unsigned short raw[3];
   unsigned char reg = GYRO_DATAREG;
   int i = 0;
   
@@ -21,18 +22,45 @@ void Read_Gyro()
   while(i<6&&reg<GYRO_DATAREG+6){
     
     buff[i] = i2cReadByte(reg);
-    printf("gyro[%x]:%x ",reg,buff[i]);
+    //printf("gyro[%x]:%x ",reg,buff[i]);
     //usleep(5000);
     reg++;
-    i++;
+    i++; 
   }
   
   if (i == 6)  // All bytes received?
   {
     
-    gyro[0] = -1 * ((((int) buff[2]) << 8) | buff[3]);    // X axis (internal sensor -y axis)
-    gyro[1] = -1 * ((((int) buff[0]) << 8) | buff[1]);    // Y axis (internal sensor -x axis)
-    gyro[2] = -1 * ((((int) buff[4]) << 8) | buff[5]);    // Z axis (internal sensor -z axis)
+    //ints are stored as 2-byte 2s-complements on an arduino so casting to int is sufficent to
+    //retrieve 16bit 2s-complement values from sensor registers on an arduino. 
+    //gyro1[0] = -1 * ((((int) buff[2]) << 8) | buff[3]);    // X axis (internal sensor -y axis)
+    //gyro1[1] = -1 * ((((int) buff[0]) << 8) | buff[1]);    // Y axis (internal sensor -x axis)
+    //gyro1[2] = -1 * ((((int) buff[4]) << 8) | buff[5]);    // Z axis (internal sensor -z axis)
+    
+    // MSB first, X Y reversed
+    raw[0] = ((buff[2]) << 8) | buff[3];    // X axis (internal sensor -y axis)
+    raw[1] = ((buff[0]) << 8) | buff[1];    // Y axis (internal sensor -x axis)
+    raw[2] = ((buff[4]) << 8) | buff[5];    // Z axis (internal sensor -z axis)
+
+    //Manual 2s-complement conversion on ARM v8
+    //nasty bit of code can be optimized.
+    //TODO: make it branch-less
+    int k;
+    for(k=0;k<3;k++){
+        //Convert from twos complement
+        if((raw[k] >> 15) == 1){
+	  raw[k] = ~raw[k] + 1;
+	  gyro[k] = raw[k];
+	  gyro[k] *= -1;
+	  //printf("negative");
+        }else{
+	  gyro[k] = raw[k];
+	}
+        //XXXX is the maximum value of an X-bit signed register
+        //TODO: Scale based on Max value being read.
+        //gyro2[k] = (float)16 * (gyro2[k]/(0x1FF));
+	//printf("\n%f\n",gyro[k]);
+    }
     
     printf("gyro: %f %f %f\n",gyro[0],gyro[1],gyro[2]);
   
@@ -47,6 +75,7 @@ void Read_Magn()
 {
   
   unsigned char buff[6];
+  unsigned short raw[3];
   unsigned char reg = MAGN_DATAREG;
   int i = 0;
   
@@ -57,7 +86,7 @@ void Read_Magn()
   while(i<6&&reg<MAGN_DATAREG+6){
     
     buff[i] = i2cReadByte(reg);
-    printf("magn[%x]:%x ",reg,buff[i]);
+    //printf("magn[%x]:%x ",reg,buff[i]);
     //usleep(5000);
     reg++;
     i++;
@@ -66,10 +95,35 @@ void Read_Magn()
   
   if (i == 6)  // All bytes received?
   {
+    //ints are stored as 2-byte 2s-complements on an arduino so casting to int is sufficent to
+    //retrieve 16bit 2s-complement values from sensor registers on an arduino. 
+    //magnetom[0] = -1*((((int) buff[0]) << 8) | buff[1]);         // X axis (internal sensor x axis)
+    //magnetom[1] = -1*((((int) buff[4]) << 8) | buff[5]);  // Y axis (internal sensor -y axis)
+    //magnetom[2] = -1*((((int) buff[2]) << 8) | buff[3]);  // Z axis (internal sensor -z axis)
+    
     // MSB byte first, then LSB; Y and Z reversed: X, Z, Y
-    magnetom[0] = ((((int) buff[0]) << 8) | buff[1]);         // X axis (internal sensor x axis)
-    magnetom[1] = -1*((((int) buff[4]) << 8) | buff[5]);  // Y axis (internal sensor -y axis)
-    magnetom[2] = -1*((((int) buff[2]) << 8) | buff[3]);  // Z axis (internal sensor -z axis)
+    raw[0] = ((buff[0]) << 8) | buff[1];    // X axis (internal sensor -y axis)
+    raw[1] = ((buff[4]) << 8) | buff[5];    // Y axis (internal sensor -x axis)
+    raw[2] = ((buff[2]) << 8) | buff[3];    // Z axis (internal sensor -z axis)
+    
+    //Manual 2s-Complement conversion
+    //TODO:Make this branchless
+    int k;
+    for(k=0;k<3;k++){
+        //Convert from twos complement
+        if((raw[k] >> 15) == 1){
+	  raw[k] = ~raw[k] + 1;
+	  magnetom[k] = raw[k];
+	  magnetom[k] *= -1;
+	  //printf("negative");
+        }else{
+	  magnetom[k] = raw[k];
+	}
+        //XXXX is the maximum value of an X-bit signed register
+        //TODO: Scale based on Max value being read.
+        //magnetom[k] = (float)16 * (magnetom[k]/(0x1FF));
+	//printf("\n%f\n",magnetom[k]);
+    }
     
     printf("magn: %f %f %f\n",magnetom[0],magnetom[1],magnetom[2]);
   }
@@ -83,6 +137,7 @@ void Read_Magn()
 void Read_Accel()
 {
   unsigned char reg = ACCEL_DATAREG;
+  unsigned short raw[3];
   unsigned char buff[6];
   int i = 0;
   
@@ -93,7 +148,7 @@ void Read_Accel()
   while(i<6&&reg<ACCEL_DATAREG+6)
   {
     buff[i] = i2cReadByte(reg);  // Read one byte
-    printf("accl[%x]:%x ",reg,buff[i]);
+    //printf("accl[%x]:%x ",reg,buff[i]);
     //usleep(5000);
     reg++;
     i++;
@@ -101,11 +156,38 @@ void Read_Accel()
   
   if (i == 6)  // All bytes received?
   {
-    // No multiply by -1 for coordinate system transformation here, because of double negation:
-    // We want the gravity vector, which is negated acceleration vector.
-    accel[0] = ((((int) buff[3]) << 8) | buff[2]);  // X axis (internal sensor y axis)
-    accel[1] = ((((int) buff[1]) << 8) | buff[0]);  // Y axis (internal sensor x axis)
-    accel[2] = ((((int) buff[5]) << 8) | buff[4]);  // Z axis (internal sensor z axis)
+    
+    //ints are stored as 2-byte 2s-complements on an arduino so casting to int is sufficent to
+    //retrieve 16bit 2s-complement values from sensor registers on an arduino.
+    //accel[0] = ((((int) buff[3]) << 8) | buff[2]);  // X axis (internal sensor y axis)
+    //accel[1] = ((((int) buff[1]) << 8) | buff[0]);  // Y axis (internal sensor x axis)
+    //accel[2] = ((((int) buff[5]) << 8) | buff[4]);  // Z axis (internal sensor z axis)
+    
+    // MSB byte first, then LSB; Y and Z reversed: X, Z, Y
+    raw[0] = ((buff[0]) << 8) | buff[1];    // X axis (internal sensor -y axis)
+    raw[1] = ((buff[4]) << 8) | buff[5];    // Y axis (internal sensor -x axis)
+    raw[2] = ((buff[2]) << 8) | buff[3];    // Z axis (internal sensor -z axis)
+    
+    //Manual 2s-Complement Conversion.
+    int k;
+    for(k=0;k<3;k++){
+        //Convert from twos complement
+        if((raw[k] >> 15) == 1){
+	  raw[k] = ~raw[k] + 1;
+	  accel[k] = raw[k];
+	  // We do not multiply by -1 for coordinate system transformation here, because of double negation:
+	  // We want the gravity vector, which is negated acceleration vector.
+	  // accel[k] *= -1;
+	  // TODO:investigate --> May not be the case becasue the sensor is upside down ?
+	  // printf("negative");
+        }else{
+	  accel[k] = raw[k];
+	}
+        //1FF is the maximum value of a 10-bit signed register
+        //TODO: I thought we had 13bit resolution ?
+        accel[k] = (float)16 * (accel[k]/(0x1FF));
+	//printf("\n%f\n",accel[k]);
+    }
     
     printf("accl: %f %f %f\n",accel[0],accel[1],accel[2]);
   }
@@ -178,7 +260,7 @@ int main(int argc, char **argv)
       Read_Accel();
       Read_Gyro();
       Read_Magn();
-      //usleep(40000);
+      usleep(80000);
       //i++;
     }
     
