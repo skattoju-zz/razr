@@ -2,21 +2,17 @@
 
 #include <math.h>
 
-// Gain for gyroscope (ITG-3200)
-#define GYRO_GAIN 0.06957 // Same gain on all axes
-#define GYRO_SCALED_RAD(x) (x * TO_RAD(GYRO_GAIN)) // Calculate the scaled gyro readings in radians per second
-
-// DCM parameters
 #define Kp_ROLLPITCH 0.02f
 #define Ki_ROLLPITCH 0.00002f
 #define Kp_YAW 1.2f
 #define Ki_YAW 0.00002f
 
-// Stuff
-#define STATUS_LED_PIN 13  // Pin number of status LED
-#define GRAVITY 256.0f // "1G reference" used for DCM filter and accelerometer calibration
-#define TO_RAD(x) (x * 0.01745329252)  // *pi/180
-#define TO_DEG(x) (x * 57.2957795131)  // *180/pi
+extern float Kp_ROLLPITCH;
+extern float Ki_ROLLPITCH;
+extern float Kp_YAW;
+extern float Ki_YAW;
+extern float GRAVITY;
+extern float GYRO_GAIN; // Same gain on all axes
 
 // Sensor variables
 extern float accel[3];  // Actually stores the NEGATED acceleration (equals gravity, if board not moving).

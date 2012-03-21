@@ -2,6 +2,9 @@
 
 #include <math.h>
 
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+#define abs(x) ((x)>=0?(x):-(x))
+
 // Computes the dot product of two vectors
 float Vector_Dot_Product(float vector1[3], float vector2[3])
 {
